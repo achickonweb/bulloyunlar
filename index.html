@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BÜLLOYUNLAR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --surface3: #22222c;
+    --border: #2a2a38;
+    --accent: #ff3c5f;
+    --accent2: #ffb800;
+    --accent3: #00e5ff;
+    --text: #f0f0f5;
+    --muted: #666680;
+    --green: #00ff88;
+    --purple: #9b59ff;
+    --font-display: 'Bebas Neue', cursive;
+    --font-ui: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 8px;
+    --radius-lg: 16px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* ─── NOISE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.5;
+  }
+  /* ─── SCREENS ─── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+  /* ─── AUTH SCREEN ─── */
+  #auth-screen {
+    background: var(--bg);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  #auth-screen::after {
+    content: 'BÜLLO';
+    position: absolute;
+    font-family: var(--font-display);
+    font-size: clamp(80px, 25vw, 220px);
+    color: rgba(255,60,95,0.04);
+    letter-spacing: 0.05em;
+    user-select: none;
+    pointer-events: none;
+    bottom: -20px;
+    left: -10px;
+    white-space: nowrap;
+    z-index: 0;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 0 60px rgba(255,60,95,0.08), 0 20px 40px rgba(0,0,0,0.6);
+  }
+  .auth-logo {
+    font-family: var(--font-display);
+    font-size: 48px;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .auth-logo span { color: var(--accent); }
+  .auth-tagline {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+  .auth-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 28px;
+  }
+  .auth-tab {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .auth-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .input-group { margin-bottom: 16px; }
+  .input-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+  }
+  .input-group input {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-group input:focus { border-color: var(--accent); }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    width: 100%;
+  }
+  .btn-primary:hover { background: #ff5575; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-secondary {
+    background: var(--surface3);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--surface2); border-color: var(--accent); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+  .btn-accent2 { background: var(--accent2); color: #000; }
+  .btn-accent3 { background: var(--accent3); color: #000; }
+  .btn-green { background: var(--green); color: #000; }
+  .error-msg {
+    background: rgba(255,60,95,0.1);
+    border: 1px solid rgba(255,60,95,0.3);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-top: 12px;
+    display: none;
+    font-family: var(--font-mono);
+  }
+  .error-msg.show { display: block; }
+  /* ─── MAIN APP ─── */
+  #app-screen { background: var(--bg); }
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-logo {
+    font-family: var(--font-display);
+    font-size: 26px;
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .user-badge {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .user-badge strong { color: var(--accent3); }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    font-family: var(--font-mono);
+  }
+  /* ─── NAV TABS ─── */
+  .nav-tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 12px;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    flex-shrink: 0;
+    padding: 14px 16px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: color 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .nav-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+  .nav-tab.active { color: var(--text); }
+  .nav-tab.active::after { transform: scaleX(1); }
+  .nav-tab .tab-icon { margin-right: 6px; }
+  /* ─── TAB CONTENT ─── */
+  .tab-content { display: none; flex: 1; }
+  .tab-content.active { display: flex; flex-direction: column; }
+  /* ─── GAME PANEL ─── */
+  .game-panel { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+  .panel-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel-header::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,60,95,0.15), transparent);
+    pointer-events: none;
+  }
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .panel-title .accent { color: var(--accent); }
+  .panel-title .accent2 { color: var(--accent2); }
+  .panel-title .accent3 { color: var(--accent3); }
+  .panel-subtitle {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  /* ─── CATEGORY GRID ─── */
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .cat-btn {
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+  }
+  .cat-btn:hover { border-color: var(--accent); background: var(--surface3); }
+  .cat-btn.selected {
+    border-color: var(--accent);
+    background: rgba(255,60,95,0.12);
+    color: var(--accent);
+  }
+  .cat-btn.selected-street {
+    border-color: var(--accent2);
+    background: rgba(255,184,0,0.12);
+    color: var(--accent2);
+  }
+  .cat-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--surface3);
+    border-radius: 4px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+  }
+  /* ─── ACTION BUTTONS ─── */
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .big-action-btn {
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-family: var(--font-display);
+    font-size: 20px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .big-action-btn small {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .big-action-btn:hover { transform: translateY(-2px); }
+  .big-action-btn:active { transform: scale(0.97); }
+  /* ─── MAP ─── */
+  .map-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    flex: 1;
+    min-height: 280px;
+  }
+  #map-couple, #map-street, #map-tour { height: 100%; min-height: 280px; }
+  /* ─── TOUR MODE ─── */
+  .tour-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .tour-points-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 160px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  .tour-point {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .tour-point .remove-pt {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+  /* ─── FORUM ─── */
+  .forum-panel { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .new-post-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .new-post-form textarea {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    min-height: 80px;
+    transition: border-color 0.2s;
+    margin-bottom: 10px;
+  }
+  .new-post-form textarea:focus { border-color: var(--accent); }
+  .posts-list { display: flex; flex-direction: column; gap: 12px; }
+  .post-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    animation: fadeInUp 0.3s ease;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .post-author {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent3);
+  }
+  .post-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .post-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .post-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .like-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .like-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .like-btn.liked { border-color: var(--accent); color: var(--accent); background: rgba(255,60,95,0.1); }
+  .toggle-comments-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 5px 8px;
+  }
+  .toggle-comments-btn:hover { color: var(--text); }
+  .comments-section { margin-top: 12px; display: none; }
+  .comments-section.open { display: block; }
+  .comment-item {
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+  .comment-author {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent3);
+    margin-bottom: 3px;
+  }
+  .comment-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .add-comment {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .add-comment input {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .add-comment input:focus { border-color: var(--accent3); }
+  /* ─── TOAST ─── */
+  #toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .toast {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    animation: toastIn 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--accent); color: var(--accent); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* ─── LOADING ─── */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    gap: 16px;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loader-logo {
+    font-family: var(--font-display);
+    font-size: 52px;
+    letter-spacing: 0.05em;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .loader-logo span { color: var(--accent); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .loader-bar {
+    width: 160px;
+    height: 2px;
+    background: var(--surface3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .loader-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    animation: slide 1.2s ease-in-out infinite;
+    transform-origin: left;
+  }
+  @keyframes slide {
+    0% { transform: scaleX(0) translateX(0); }
+    50% { transform: scaleX(1) translateX(0); }
+    100% { transform: scaleX(0) translateX(200%); }
+  }
+  /* ─── MODE TOGGLE ─── */
+  .mode-toggle {
+    display: flex;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 4px;
+    gap: 0;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .mode-btn.active { background: var(--surface3); color: var(--text); }
+  /* ─── STATS BAR ─── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .stat-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-chip .stat-val {
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+  .stat-chip .stat-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  /* ─── LEAFLET OVERRIDES ─── */
+  .leaflet-container { background: #111 !important; }
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) saturate(0.8) brightness(0.7); }
+  /* ─── MISC ─── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+  }
+  .tag {
+    display: inline-block;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .tag.couple { border-color: rgba(255,60,95,0.4); color: var(--accent); }
+  .tag.street { border-color: rgba(255,184,0,0.4); color: var(--accent2); }
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+  .empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
+  @media (min-width: 640px) {
+    .category-grid { grid-template-columns: repeat(3, 1fr); }
+    .auth-card { padding: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loader-logo">BÜLLO<span>YUNLAR</span></div>
+  <div class="loader-bar"></div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div class="screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">BÜLLO<span>YUNLAR</span></div>
+    <div class="auth-tagline">// şehrin tanıkları</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">GİRİŞ</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">KAYIT</button>
+    </div>
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="input-group">
+        <label>E-posta</label>
+        <input type="email" id="login-email" placeholder="ornek@mail.com" />
+      </div>
+      <div class="input-group">
+        <label>Şifre</label>
+        <input type="password" id="login-pass" placeholder="••••••••" />
+      </div>
+      <button class="btn btn-primary" onclick="handleLogin()">GİRİŞ YAP →</button>
+      <div class="error-msg" id="login-error"></div>
+    </div>
+    <!-- Register Form -->
+    <div id="register-form" style="display:none;">
+      <div class="input-group">
+        <label>Kullanıcı Adı</label>
+        <input type="text" id="reg-username" placeholder="gizli_gozlemci" />
+      </div>
+      <div class="input-group">
+        <label>E-posta</label>
+        <input type="email" id="reg-email" placeholder="ornek@mail.com" />
+      </div>
+      <div class="input-group">
+        <label>Şifre</label>
+        <input type="password" id="reg-pass" placeholder="min. 6 karakter" />
+      </div>
+      <button class="btn btn-primary" onclick="handleRegister()">KAYIT OL →</button>
+      <div class="error-msg" id="reg-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div class="screen" id="app-screen">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">BÜLLO<span>YUNLAR</span></div>
+    <div class="topbar-user">
+      <div class="user-badge">merhaba, <strong id="topbar-username">---</strong></div>
+      <div class="avatar" id="topbar-avatar">?</div>
+      <button class="btn btn-ghost btn-sm" onclick="handleLogout()">çıkış</button>
+    </div>
+  </div>
+  <!-- Nav Tabs -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('couple')"><span class="tab-icon">💑</span>Çift Görüntüleri</button>
+    <button class="nav-tab" onclick="switchTab('street')"><span class="tab-icon">🌆</span>Sokak Olayları</button>
+    <button class="nav-tab" onclick="switchTab('forum')"><span class="tab-icon">💬</span>Forum</button>
+  </div>
+
+  <!-- ──── GAME 1: COUPLE SIGHTINGS ──── -->
+  <div class="tab-content active" id="tab-couple">
+    <div class="game-panel">
+      <div class="panel-header">
+        <div class="panel-title">ÇİFT <span class="accent">GÖZLEMİ</span></div>
+        <div class="panel-subtitle">// romantic encounters in the wild</div>
+        <div class="stats-row" style="margin-top:14px;">
+          <div class="stat-chip">
+            <div class="stat-val" style="color:var(--accent)" id="couple-count">0</div>
+            <div class="stat-label">gözlem</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-val" style="color:var(--accent3)" id="couple-today">0</div>
+            <div class="stat-label">bugün</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-val" style="color:var(--green)" id="couple-categories">0</div>
+            <div class="stat-label">kategori</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" onclick="setCoupleMode('quick')" id="couple-mode-quick">⚡ HIZLI</button>
+        <button class="mode-btn" onclick="setCoupleMode('tour')" id="couple-mode-tour">🗺 TUR MODU</button>
+      </div>
+
+      <!-- Quick Mode -->
+      <div id="couple-quick-mode">
+        <div class="section-label">kategori seç</div>
+        <div class="category-grid" id="couple-cat-grid"></div>
+        <div style="margin-top:12px;">
+          <button class="big-action-btn btn-primary" style="width:100%; border-radius:12px;" onclick="quickLog('couple')">
+            👀 GÖRDÜM!
+            <small>konum + kategori kaydet</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tour Mode -->
+      <div id="couple-tour-mode" style="display:none;">
+        <div class="section-label">kategori seç</div>
+        <div class="category-grid" id="couple-tour-cat-grid"></div>
+        <div class="tour-controls" style="margin-top:12px;">
+          <div class="section-label">haritaya tıklayarak nokta ekle</div>
+          <div class="map-container" style="min-height:220px;">
+            <div id="map-tour"></div>
+          </div>
+          <div class="tour-points-list" id="tour-points-list">
+            <div class="empty-state" style="padding:16px;"><div class="empty-icon">📍</div>Henüz nokta yok</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" onclick="clearTourPoints()">Temizle</button>
+            <button class="btn btn-accent2 btn-sm" style="flex:1;" onclick="submitTourBatch()">TUR GÖNDER (0)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="map-container">
+        <div id="map-couple"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──── GAME 2: STREET EVENTS ──── -->
+  <div class="tab-content" id="tab-street">
+    <div class="game-panel">
+      <div class="panel-header" style="--accent:var(--accent2)">
+        <div class="panel-title">SOKAK <span class="accent2">OLAYLARI</span></div>
+        <div class="panel-subtitle">// urban chaos recorder</div>
+        <div class="stats-row" style="margin-top:14px;">
+          <div class="stat-chip">
+            <div class="stat-val" style="color:var(--accent2)" id="street-count">0</div>
+            <div class="stat-label">olay</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-val" style="color:var(--accent3)" id="street-today">0</div>
+            <div class="stat-label">bugün</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-val" style="color:var(--green)" id="street-categories">0</div>
+            <div class="stat-label">kategori</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">kategori seç</div>
+      <div class="category-grid" id="street-cat-grid"></div>
+
+      <button class="big-action-btn btn-accent2" style="width:100%; border-radius:12px; margin-top:4px;" onclick="quickLog('street')">
+        🚨 OLAY KAYDET!
+        <small>konum + kategori kaydet</small>
+      </button>
+
+      <div class="map-container">
+        <div id="map-street"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──── FORUM ──── -->
+  <div class="tab-content" id="tab-forum">
+    <div class="forum-panel">
+      <div class="panel-header">
+        <div class="panel-title">FORUM <span class="accent3">ALANI</span></div>
+        <div class="panel-subtitle">// şehir dedikodularının merkezi</div>
+      </div>
+      <div class="new-post-form">
+        <div class="section-label">yeni gönderi</div>
+        <textarea id="new-post-text" placeholder="Bugün ne gördün? Sokaktan bir hikaye paylaş..."></textarea>
+        <button class="btn btn-accent3" style="width:100%;" onclick="submitPost()">PAYLAŞ →</button>
+      </div>
+      <div class="posts-list" id="posts-list">
+        <div class="empty-state"><div class="empty-icon">💬</div>Henüz gönderi yok</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- FIREBASE + LEAFLET SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, updateDoc, increment, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBAChbos5qhbDCifQeQVkAjbofyHOU1FsY",
+  authDomain: "duomingo-a15fc.firebaseapp.com",
+  projectId: "duomingo-a15fc",
+  storageBucket: "duomingo-a15fc.firebasestorage.app",
+  messagingSenderId: "232707742988",
+  appId: "1:232707742988:web:0887d60754c29a8e21fd29",
+  measurementId: "G-DRN9XCRYS2"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ─── STATE ───
+let currentUser = null;
+let currentUsername = '';
+let mapCouple = null, mapStreet = null, mapTour = null;
+let coupleCluster = null, streetCluster = null;
+let tourPoints = [];
+let selectedCoupleCategory = null;
+let selectedStreetCategory = null;
+let selectedTourCategory = null;
+let likedPosts = new Set();
+
+const COUPLE_CATEGORIES = [
+  { id: 1, label: 'El ele', emoji: '🤝' },
+  { id: 2, label: 'Kol kola', emoji: '💪' },
+  { id: 3, label: 'Oturan çift', emoji: '🪑' },
+  { id: 4, label: 'Birlikte yürüyor', emoji: '🚶' },
+  { id: 5, label: 'Duran çift', emoji: '🧍' },
+  { id: 6, label: 'Yakın temas', emoji: '🫂' },
+  { id: 7, label: 'Belirsiz çift', emoji: '🤔' },
+  { id: 8, label: 'Şüpheli romans', emoji: '👀' },
+  { id: 9, label: 'Durma anı', emoji: '💬' },
+  { id: 10, label: 'Grup çift', emoji: '👫' }
+];
+
+const STREET_CATEGORIES = [
+  { id: 1, label: 'Kavga', emoji: '🥊' },
+  { id: 2, label: 'Sokak Müzisyeni', emoji: '🎸' },
+  { id: 3, label: 'Kalabalık', emoji: '👥' },
+  { id: 4, label: 'Hayvan', emoji: '🐾' },
+  { id: 5, label: 'Trafik', emoji: '🚗' },
+  { id: 6, label: 'Polis', emoji: '🚔' },
+  { id: 7, label: 'Rastgele Olay', emoji: '❓' },
+  { id: 8, label: 'Performans', emoji: '🎭' },
+  { id: 9, label: 'Festival/Etkinlik', emoji: '🎉' },
+  { id: 10, label: 'Sıra Dışı', emoji: '🔮' }
+];
+
+const CATEGORY_COLORS = {
+  couple: ['#ff3c5f','#ff6b8a','#c0392b','#e74c3c','#ff8a80','#f06292','#ad1457','#880e4f','#ff5252','#ff4081'],
+  street: ['#ffb800','#ffd54f','#ff8f00','#e65100','#ff7043','#ff9800','#ffa726','#ffcc02','#f57c00','#ffe57f']
+};
+
+// ─── UTILS ───
+function toast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'az önce';
+  if (diff < 3600000) return `${Math.floor(diff/60000)}dk önce`;
+  if (diff < 86400000) return `${Math.floor(diff/3600000)}sa önce`;
+  return d.toLocaleDateString('tr-TR');
+}
+
+function isToday(ts) {
+  if (!ts) return false;
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const now = new Date();
+  return d.toDateString() === now.toDateString();
+}
+
+// ─── AUTH HANDLERS ───
+window.switchAuthTab = (tab) => {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').style.display = tab==='login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? '' : 'none';
+};
+
+window.handleLogin = async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent = 'Tüm alanları doldurun.'; errEl.classList.add('show'); return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.add('show');
+  }
+};
+
+window.handleRegister = async () => {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  const errEl = document.getElementById('reg-error');
+  errEl.classList.remove('show');
+  if (!username || !email || !pass) { errEl.textContent = 'Tüm alanları doldurun.'; errEl.classList.add('show'); return; }
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await addDoc(collection(db, 'users'), { uid: cred.user.uid, username, email });
+    toast('Kayıt başarılı! Hoş geldin ' + username, 'success');
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.add('show');
+  }
+};
+
+window.handleLogout = async () => {
+  await signOut(auth);
+};
+
+// ─── AUTH STATE ───
+onAuthStateChanged(auth, async (user) => {
+  document.getElementById('loading-overlay').classList.add('hidden');
+  if (user) {
+    currentUser = user;
+    // Fetch username
+    const snap = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+    currentUsername = snap.empty ? user.email.split('@')[0] : snap.docs[0].data().username;
+    document.getElementById('topbar-username').textContent = currentUsername;
+    document.getElementById('topbar-avatar').textContent = currentUsername[0].toUpperCase();
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('app-screen').classList.add('active');
+    initMaps();
+    buildCategoryGrids();
+    loadObservationStats();
+    listenPosts();
+  } else {
+    currentUser = null;
+    document.getElementById('app-screen').classList.remove('active');
+    document.getElementById('auth-screen').classList.add('active');
+  }
+});
+
+// ─── TAB SWITCHING ───
+window.switchTab = (tab) => {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'couple') { setTimeout(() => { mapCouple && mapCouple.invalidateSize(); }, 100); }
+  if (tab === 'street') { setTimeout(() => { mapStreet && mapStreet.invalidateSize(); }, 100); }
+};
+
+// ─── MODE TOGGLE ───
+window.setCoupleMode = (mode) => {
+  document.getElementById('couple-mode-quick').classList.toggle('active', mode==='quick');
+  document.getElementById('couple-mode-tour').classList.toggle('active', mode==='tour');
+  document.getElementById('couple-quick-mode').style.display = mode==='quick' ? '' : 'none';
+  document.getElementById('couple-tour-mode').style.display = mode==='tour' ? '' : 'none';
+  if (mode === 'tour') {
+    setTimeout(() => { mapTour && mapTour.invalidateSize(); }, 100);
+  }
+};
+
+// ─── MAP INIT ───
+function initMaps() {
+  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const attribution = '© OSM';
+  const center = [41.0082, 28.9784]; // Istanbul
+
+  if (!mapCouple) {
+    mapCouple = L.map('map-couple', { zoomControl: true }).setView(center, 12);
+    L.tileLayer(tileUrl, { attribution }).addTo(mapCouple);
+    coupleCluster = L.markerClusterGroup();
+    mapCouple.addLayer(coupleCluster);
+  }
+  if (!mapStreet) {
+    mapStreet = L.map('map-street', { zoomControl: true }).setView(center, 12);
+    L.tileLayer(tileUrl, { attribution }).addTo(mapStreet);
+    streetCluster = L.markerClusterGroup();
+    mapStreet.addLayer(streetCluster);
+  }
+  if (!mapTour) {
+    mapTour = L.map('map-tour', { zoomControl: false }).setView(center, 13);
+    L.tileLayer(tileUrl, { attribution }).addTo(mapTour);
+    mapTour.on('click', onTourMapClick);
+  }
+  loadMapMarkers();
+}
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;background:${color};border-radius:50%;border:2px solid rgba(255,255,255,0.6);box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+}
+
+async function loadMapMarkers() {
+  const snap = await getDocs(collection(db, 'observations'));
+  coupleCluster && coupleCluster.clearLayers();
+  streetCluster && streetCluster.clearLayers();
+  snap.forEach(doc => {
+    const d = doc.data();
+    if (!d.lat || !d.lng) return;
+    const idx = (d.categoryId || 1) - 1;
+    const color = d.gameType === 'couple' ? CATEGORY_COLORS.couple[idx] : CATEGORY_COLORS.street[idx];
+    const catName = d.gameType === 'couple' ? COUPLE_CATEGORIES[idx]?.label : STREET_CATEGORIES[idx]?.label;
+    const marker = L.marker([d.lat, d.lng], { icon: makeIcon(color) })
+      .bindPopup(`<b style="color:${color}">${catName || d.category}</b><br><small>${formatTime(d.timestamp)}</small>`);
+    if (d.gameType === 'couple') coupleCluster && coupleCluster.addLayer(marker);
+    else streetCluster && streetCluster.addLayer(marker);
+  });
+}
+
+// ─── CATEGORY GRIDS ───
+function buildCategoryGrids() {
+  buildGrid('couple-cat-grid', COUPLE_CATEGORIES, 'couple', (id) => { selectedCoupleCategory = id; });
+  buildGrid('couple-tour-cat-grid', COUPLE_CATEGORIES, 'couple', (id) => { selectedTourCategory = id; });
+  buildGrid('street-cat-grid', STREET_CATEGORIES, 'street', (id) => { selectedStreetCategory = id; });
+}
+
+function buildGrid(containerId, cats, type, onSelect) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.innerHTML = `<span>${cat.emoji}</span><span>${cat.label}</span><span class="cat-num">${cat.id}</span>`;
+    btn.onclick = () => {
+      container.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected', 'selected-street'));
+      btn.classList.add(type === 'couple' ? 'selected' : 'selected-street');
+      onSelect(cat.id);
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ─── QUICK LOG ───
+window.quickLog = async (gameType) => {
+  const catId = gameType === 'couple' ? selectedCoupleCategory : selectedStreetCategory;
+  if (!catId) { toast('Önce bir kategori seç!', 'error'); return; }
+  if (!navigator.geolocation) { toast('Konum desteklenmiyor', 'error'); return; }
+  toast('Konum alınıyor...');
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const cats = gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
+    const cat = cats.find(c => c.id === catId);
+    try {
+      await addDoc(collection(db, 'observations'), {
+        userId: currentUser.uid,
+        username: currentUsername,
+        gameType,
+        category: cat.label,
+        categoryId: catId,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        timestamp: serverTimestamp()
+      });
+      toast(`${cat.emoji} ${cat.label} kaydedildi!`, 'success');
+      loadObservationStats();
+      loadMapMarkers();
+    } catch(e) {
+      toast('Kayıt hatası: ' + e.message, 'error');
+    }
+  }, (err) => { toast('Konum alınamadı: ' + err.message, 'error'); });
+};
+
+// ─── TOUR MODE ───
+let tourMapMarkers = [];
+function onTourMapClick(e) {
+  const catId = selectedTourCategory;
+  if (!catId) { toast('Önce kategori seç!', 'error'); return; }
+  const cat = COUPLE_CATEGORIES.find(c => c.id === catId);
+  const pt = { lat: e.latlng.lat, lng: e.latlng.lng, catId, catLabel: cat.label, catEmoji: cat.emoji };
+  tourPoints.push(pt);
+  const m = L.marker([pt.lat, pt.lng], { icon: makeIcon(CATEGORY_COLORS.couple[catId-1]) })
+    .bindPopup(`${cat.emoji} ${cat.label}`).addTo(mapTour);
+  tourMapMarkers.push(m);
+  renderTourPoints();
+}
+
+function renderTourPoints() {
+  const list = document.getElementById('tour-points-list');
+  const btn = document.querySelector('#couple-tour-mode .btn-accent2');
+  btn.textContent = `TUR GÖNDER (${tourPoints.length})`;
+  if (tourPoints.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="empty-icon">📍</div>Henüz nokta yok</div>';
+    return;
+  }
+  list.innerHTML = '';
+  tourPoints.forEach((pt, i) => {
+    const el = document.createElement('div');
+    el.className = 'tour-point';
+    el.innerHTML = `<span>${i+1}. ${pt.catEmoji} ${pt.catLabel}</span><span style="color:var(--muted);font-size:10px;">${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}</span><button class="remove-pt" onclick="removeTourPoint(${i})">✕</button>`;
+    list.appendChild(el);
+  });
+}
+
+window.removeTourPoint = (i) => {
+  tourPoints.splice(i, 1);
+  if (tourMapMarkers[i]) { mapTour.removeLayer(tourMapMarkers[i]); tourMapMarkers.splice(i, 1); }
+  renderTourPoints();
+};
+
+window.clearTourPoints = () => {
+  tourPoints = [];
+  tourMapMarkers.forEach(m => mapTour.removeLayer(m));
+  tourMapMarkers = [];
+  renderTourPoints();
+};
+
+window.submitTourBatch = async () => {
+  if (tourPoints.length === 0) { toast('Hiç nokta eklemedin!', 'error'); return; }
+  let count = 0;
+  for (const pt of tourPoints) {
+    const cat = COUPLE_CATEGORIES.find(c => c.id === pt.catId);
+    await addDoc(collection(db, 'observations'), {
+      userId: currentUser.uid,
+      username: currentUsername,
+      gameType: 'couple',
+      category: cat.label,
+      categoryId: pt.catId,
+      lat: pt.lat,
+      lng: pt.lng,
+      timestamp: serverTimestamp()
+    });
+    count++;
+  }
+  toast(`${count} nokta kaydedildi! 🗺`, 'success');
+  clearTourPoints();
+  loadObservationStats();
+  loadMapMarkers();
+};
+
+// ─── STATS ───
+async function loadObservationStats() {
+  const snap = await getDocs(collection(db, 'observations'));
+  let coupleTot=0, coupleTod=0, coupleC=new Set();
+  let streetTot=0, streetTod=0, streetC=new Set();
+  snap.forEach(doc => {
+    const d = doc.data();
+    if (d.gameType === 'couple') { coupleTot++; coupleC.add(d.categoryId); if (isToday(d.timestamp)) coupleTod++; }
+    else { streetTot++; streetC.add(d.categoryId); if (isToday(d.timestamp)) streetTod++; }
+  });
+  document.getElementById('couple-count').textContent = coupleTot;
+  document.getElementById('couple-today').textContent = coupleTod;
+  document.getElementById('couple-categories').textContent = coupleC.size;
+  document.getElementById('street-count').textContent = streetTot;
+  document.getElementById('street-today').textContent = streetTod;
+  document.getElementById('street-categories').textContent = streetC.size;
+}
+
+// ─── FORUM ───
+window.submitPost = async () => {
+  const text = document.getElementById('new-post-text').value.trim();
+  if (!text) { toast('Bir şeyler yaz!', 'error'); return; }
+  try {
+    await addDoc(collection(db, 'posts'), {
+      userId: currentUser.uid,
+      username: currentUsername,
+      text,
+      likes: 0,
+      timestamp: serverTimestamp()
+    });
+    document.getElementById('new-post-text').value = '';
+    toast('Gönderi yayınlandı!', 'success');
+  } catch(e) { toast('Hata: ' + e.message, 'error'); }
+};
+
+function listenPosts() {
+  const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
+  onSnapshot(q, (snap) => {
+    const list = document.getElementById('posts-list');
+    if (snap.empty) { list.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div>Henüz gönderi yok</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(d => renderPost(d.id, d.data(), list));
+  });
+}
+
+function renderPost(id, data, container) {
+  const card = document.createElement('div');
+  card.className = 'post-card';
+  card.dataset.postId = id;
+  const liked = likedPosts.has(id);
+  card.innerHTML = `
+    <div class="post-header">
+      <div class="post-author">@${data.username || 'anonim'}</div>
+      <div class="post-time">${formatTime(data.timestamp)}</div>
+    </div>
+    <div class="post-text">${escHtml(data.text)}</div>
+    <div class="post-actions">
+      <button class="like-btn ${liked?'liked':''}" onclick="likePost('${id}', this)">
+        ❤ <span class="like-count">${data.likes||0}</span>
+      </button>
+      <button class="toggle-comments-btn" onclick="toggleComments('${id}', this)">💬 yorumlar</button>
+    </div>
+    <div class="comments-section" id="comments-${id}">
+      <div class="comments-inner" id="comments-inner-${id}"></div>
+      <div class="add-comment">
+        <input type="text" placeholder="Yorum ekle..." id="comment-input-${id}" />
+        <button class="btn btn-ghost btn-sm" onclick="submitComment('${id}')">Gönder</button>
+      </div>
+    </div>`;
+  container.appendChild(card);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+window.likePost = async (postId, btn) => {
+  if (likedPosts.has(postId)) return;
+  likedPosts.add(postId);
+  btn.classList.add('liked');
+  await updateDoc(doc(db, 'posts', postId), { likes: increment(1) });
+  const countEl = btn.querySelector('.like-count');
+  if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+};
+
+window.toggleComments = async (postId, btn) => {
+  const section = document.getElementById('comments-' + postId);
+  const isOpen = section.classList.toggle('open');
+  btn.textContent = isOpen ? '💬 kapat' : '💬 yorumlar';
+  if (isOpen) loadComments(postId);
+};
+
+async function loadComments(postId) {
+  const inner = document.getElementById('comments-inner-' + postId);
+  const q = query(collection(db, 'comments'), where('postId', '==', postId), orderBy('timestamp', 'asc'));
+  onSnapshot(q, (snap) => {
+    inner.innerHTML = '';
+    if (snap.empty) { inner.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:8px 0;">Henüz yorum yok</div>'; return; }
+    snap.forEach(d => {
+      const c = d.data();
+      const el = document.createElement('div');
+      el.className = 'comment-item';
+      el.innerHTML = `<div class="comment-author">@${c.username||'anonim'}</div><div class="comment-text">${escHtml(c.text)}</div>`;
+      inner.appendChild(el);
+    });
+  });
+}
+
+window.submitComment = async (postId) => {
+  const input = document.getElementById('comment-input-' + postId);
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    await addDoc(collection(db, 'comments'), {
+      postId,
+      userId: currentUser.uid,
+      username: currentUsername,
+      text,
+      timestamp: serverTimestamp()
+    });
+    input.value = '';
+  } catch(e) { toast('Yorum hatası', 'error'); }
+};
+</script>
+</body>
+</html>
