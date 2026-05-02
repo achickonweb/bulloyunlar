@@ -411,41 +411,7 @@
     flex: 1;
     min-height: 280px;
   }
-  #map-couple, #map-street, #map-tour { height: 100%; min-height: 280px; }
-  /* ─── TOUR MODE ─── */
-  .tour-controls {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 16px;
-  }
-  .tour-points-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 160px;
-    overflow-y: auto;
-    margin-top: 10px;
-  }
-  .tour-point {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-family: var(--font-mono);
-    font-size: 12px;
-  }
-  .tour-point .remove-pt {
-    background: transparent;
-    border: none;
-    color: var(--accent);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 0 4px;
-  }
+  #map-couple, #map-street { height: 100%; min-height: 320px; }
   /* ─── FORUM ─── */
   .forum-panel { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
   .new-post-form {
@@ -650,29 +616,49 @@
     50% { transform: scaleX(1) translateX(0); }
     100% { transform: scaleX(0) translateX(200%); }
   }
-  /* ─── MODE TOGGLE ─── */
-  .mode-toggle {
+  /* ─── SELECTED CATEGORY BANNER ─── */
+  .selected-cat-banner {
     display: flex;
+    align-items: center;
+    gap: 10px;
     background: var(--surface2);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 4px;
-    gap: 0;
-  }
-  .mode-btn {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
     color: var(--muted);
+    transition: all 0.25s;
+    min-height: 42px;
+  }
+  .selected-cat-banner.has-selection {
+    border-color: var(--active-color, var(--accent));
+    background: rgba(var(--active-rgb, 255,60,95), 0.08);
+    color: var(--active-color, var(--accent));
+  }
+  .selected-cat-banner .banner-emoji { font-size: 18px; line-height: 1; }
+  .selected-cat-banner .banner-label { font-weight: 500; letter-spacing: 0.06em; }
+  .selected-cat-banner .banner-hint { margin-left: auto; font-size: 10px; opacity: 0.6; letter-spacing: 0.08em; text-transform: uppercase; }
+  /* ─── MAP CLICK HINT ─── */
+  .map-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,10,15,0.85);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.2s;
+    color: var(--muted);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 500;
+    letter-spacing: 0.06em;
+    backdrop-filter: blur(4px);
   }
-  .mode-btn.active { background: var(--surface3); color: var(--text); }
+  .map-wrapper { position: relative; }
   /* ─── STATS BAR ─── */
   .stats-row {
     display: grid;
@@ -831,45 +817,39 @@
         </div>
       </div>
 
-      <!-- Mode Toggle -->
-      <div class="mode-toggle">
-        <button class="mode-btn active" onclick="setCoupleMode('quick')" id="couple-mode-quick">⚡ HIZLI</button>
-        <button class="mode-btn" onclick="setCoupleMode('tour')" id="couple-mode-tour">🗺 TUR MODU</button>
+      <!-- Category Selection -->
+      <div>
+        <div class="section-label">1 — kategori seç</div>
+        <div class="category-grid" id="couple-cat-grid"></div>
       </div>
 
-      <!-- Quick Mode -->
-      <div id="couple-quick-mode">
-        <div class="section-label">kategori seç</div>
-        <div class="category-grid" id="couple-cat-grid"></div>
-        <div style="margin-top:12px;">
-          <button class="big-action-btn btn-primary" style="width:100%; border-radius:12px;" onclick="quickLog('couple')">
+      <!-- Selected Category Banner -->
+      <div class="selected-cat-banner" id="couple-banner"
+           style="--active-color:var(--accent);--active-rgb:255,60,95;">
+        <span class="banner-emoji" id="couple-banner-emoji">◻</span>
+        <span class="banner-label" id="couple-banner-label">Kategori seçilmedi</span>
+        <span class="banner-hint">seçili kategori</span>
+      </div>
+
+      <!-- Action Row -->
+      <div>
+        <div class="section-label">2 — kayıt yöntemi</div>
+        <div class="action-row">
+          <button class="big-action-btn btn-primary" style="border-radius:12px;" onclick="quickLog('couple')">
             👀 GÖRDÜM!
-            <small>konum + kategori kaydet</small>
+            <small>GPS konumuma ekle</small>
+          </button>
+          <button class="big-action-btn btn-secondary" style="border-radius:12px;" onclick="activateMapClick('couple')">
+            📍 HARİTAYA EKLE
+            <small>haritaya tıkla</small>
           </button>
         </div>
       </div>
 
-      <!-- Tour Mode -->
-      <div id="couple-tour-mode" style="display:none;">
-        <div class="section-label">kategori seç</div>
-        <div class="category-grid" id="couple-tour-cat-grid"></div>
-        <div class="tour-controls" style="margin-top:12px;">
-          <div class="section-label">haritaya tıklayarak nokta ekle</div>
-          <div class="map-container" style="min-height:220px;">
-            <div id="map-tour"></div>
-          </div>
-          <div class="tour-points-list" id="tour-points-list">
-            <div class="empty-state" style="padding:16px;"><div class="empty-icon">📍</div>Henüz nokta yok</div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button class="btn btn-ghost btn-sm" onclick="clearTourPoints()">Temizle</button>
-            <button class="btn btn-accent2 btn-sm" style="flex:1;" onclick="submitTourBatch()">TUR GÖNDER (0)</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="map-container">
+      <!-- Map -->
+      <div class="map-container map-wrapper">
         <div id="map-couple"></div>
+        <div class="map-hint" id="couple-map-hint">kategori seç → haritaya tıkla</div>
       </div>
     </div>
   </div>
@@ -877,7 +857,7 @@
   <!-- ──── GAME 2: STREET EVENTS ──── -->
   <div class="tab-content" id="tab-street">
     <div class="game-panel">
-      <div class="panel-header" style="--accent:var(--accent2)">
+      <div class="panel-header">
         <div class="panel-title">SOKAK <span class="accent2">OLAYLARI</span></div>
         <div class="panel-subtitle">// urban chaos recorder</div>
         <div class="stats-row" style="margin-top:14px;">
@@ -896,16 +876,39 @@
         </div>
       </div>
 
-      <div class="section-label">kategori seç</div>
-      <div class="category-grid" id="street-cat-grid"></div>
+      <!-- Category Selection -->
+      <div>
+        <div class="section-label">1 — kategori seç</div>
+        <div class="category-grid" id="street-cat-grid"></div>
+      </div>
 
-      <button class="big-action-btn btn-accent2" style="width:100%; border-radius:12px; margin-top:4px;" onclick="quickLog('street')">
-        🚨 OLAY KAYDET!
-        <small>konum + kategori kaydet</small>
-      </button>
+      <!-- Selected Category Banner -->
+      <div class="selected-cat-banner" id="street-banner"
+           style="--active-color:var(--accent2);--active-rgb:255,184,0;">
+        <span class="banner-emoji" id="street-banner-emoji">◻</span>
+        <span class="banner-label" id="street-banner-label">Kategori seçilmedi</span>
+        <span class="banner-hint">seçili kategori</span>
+      </div>
 
-      <div class="map-container">
+      <!-- Action Row -->
+      <div>
+        <div class="section-label">2 — kayıt yöntemi</div>
+        <div class="action-row">
+          <button class="big-action-btn btn-accent2" style="border-radius:12px;" onclick="quickLog('street')">
+            🚨 GÖRDÜM!
+            <small>GPS konumuma ekle</small>
+          </button>
+          <button class="big-action-btn btn-secondary" style="border-radius:12px;" onclick="activateMapClick('street')">
+            📍 HARİTAYA EKLE
+            <small>haritaya tıkla</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="map-container map-wrapper">
         <div id="map-street"></div>
+        <div class="map-hint" id="street-map-hint">kategori seç → haritaya tıkla</div>
       </div>
     </div>
   </div>
@@ -957,12 +960,12 @@ const db = getFirestore(app);
 // ─── STATE ───
 let currentUser = null;
 let currentUsername = '';
-let mapCouple = null, mapStreet = null, mapTour = null;
+let mapCouple = null, mapStreet = null;
 let coupleCluster = null, streetCluster = null;
-let tourPoints = [];
 let selectedCoupleCategory = null;
 let selectedStreetCategory = null;
-let selectedTourCategory = null;
+// map-click mode: tracks which game type is awaiting a map click
+let mapClickActive = { couple: false, street: false };
 let likedPosts = new Set();
 
 const COUPLE_CATEGORIES = [
@@ -1097,17 +1100,6 @@ window.switchTab = (tab) => {
   if (tab === 'street') { setTimeout(() => { mapStreet && mapStreet.invalidateSize(); }, 100); }
 };
 
-// ─── MODE TOGGLE ───
-window.setCoupleMode = (mode) => {
-  document.getElementById('couple-mode-quick').classList.toggle('active', mode==='quick');
-  document.getElementById('couple-mode-tour').classList.toggle('active', mode==='tour');
-  document.getElementById('couple-quick-mode').style.display = mode==='quick' ? '' : 'none';
-  document.getElementById('couple-tour-mode').style.display = mode==='tour' ? '' : 'none';
-  if (mode === 'tour') {
-    setTimeout(() => { mapTour && mapTour.invalidateSize(); }, 100);
-  }
-};
-
 // ─── MAP INIT ───
 function initMaps() {
   const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -1119,17 +1111,14 @@ function initMaps() {
     L.tileLayer(tileUrl, { attribution }).addTo(mapCouple);
     coupleCluster = L.markerClusterGroup();
     mapCouple.addLayer(coupleCluster);
+    mapCouple.on('click', (e) => onMapClick(e, 'couple'));
   }
   if (!mapStreet) {
     mapStreet = L.map('map-street', { zoomControl: true }).setView(center, 12);
     L.tileLayer(tileUrl, { attribution }).addTo(mapStreet);
     streetCluster = L.markerClusterGroup();
     mapStreet.addLayer(streetCluster);
-  }
-  if (!mapTour) {
-    mapTour = L.map('map-tour', { zoomControl: false }).setView(center, 13);
-    L.tileLayer(tileUrl, { attribution }).addTo(mapTour);
-    mapTour.on('click', onTourMapClick);
+    mapStreet.on('click', (e) => onMapClick(e, 'street'));
   }
   loadMapMarkers();
 }
@@ -1162,9 +1151,29 @@ async function loadMapMarkers() {
 
 // ─── CATEGORY GRIDS ───
 function buildCategoryGrids() {
-  buildGrid('couple-cat-grid', COUPLE_CATEGORIES, 'couple', (id) => { selectedCoupleCategory = id; });
-  buildGrid('couple-tour-cat-grid', COUPLE_CATEGORIES, 'couple', (id) => { selectedTourCategory = id; });
-  buildGrid('street-cat-grid', STREET_CATEGORIES, 'street', (id) => { selectedStreetCategory = id; });
+  buildGrid('couple-cat-grid', COUPLE_CATEGORIES, 'couple', (id) => {
+    selectedCoupleCategory = id;
+    updateBanner('couple', id);
+  });
+  buildGrid('street-cat-grid', STREET_CATEGORIES, 'street', (id) => {
+    selectedStreetCategory = id;
+    updateBanner('street', id);
+  });
+}
+
+function updateBanner(gameType, catId) {
+  const cats = gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
+  const cat = cats.find(c => c.id === catId);
+  const banner = document.getElementById(gameType + '-banner');
+  const emojiEl = document.getElementById(gameType + '-banner-emoji');
+  const labelEl = document.getElementById(gameType + '-banner-label');
+  const hint = document.getElementById(gameType + '-map-hint');
+  if (cat) {
+    banner.classList.add('has-selection');
+    emojiEl.textContent = cat.emoji;
+    labelEl.textContent = cat.label;
+    if (hint) hint.textContent = `📍 ${cat.emoji} ${cat.label} — haritaya tıkla veya "HARİTAYA EKLE" butonuna bas`;
+  }
 }
 
 function buildGrid(containerId, cats, type, onSelect) {
@@ -1183,101 +1192,82 @@ function buildGrid(containerId, cats, type, onSelect) {
   });
 }
 
-// ─── QUICK LOG ───
+// ─── SAVE OBSERVATION (shared) ───
+async function saveObservation(gameType, lat, lng) {
+  const catId = gameType === 'couple' ? selectedCoupleCategory : selectedStreetCategory;
+  const cats = gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
+  const cat = cats.find(c => c.id === catId);
+  await addDoc(collection(db, 'observations'), {
+    userId: currentUser.uid,
+    username: currentUsername,
+    gameType,
+    category: cat.label,
+    categoryId: catId,
+    lat,
+    lng,
+    timestamp: serverTimestamp()
+  });
+  toast(`📍 ${cat.emoji} ${cat.label} kaydedildi`, 'success');
+  loadObservationStats();
+  loadMapMarkers();
+}
+
+// ─── QUICK LOG (GPS) ───
 window.quickLog = async (gameType) => {
   const catId = gameType === 'couple' ? selectedCoupleCategory : selectedStreetCategory;
   if (!catId) { toast('Önce bir kategori seç!', 'error'); return; }
   if (!navigator.geolocation) { toast('Konum desteklenmiyor', 'error'); return; }
-  toast('Konum alınıyor...');
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    const cats = gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
-    const cat = cats.find(c => c.id === catId);
-    try {
-      await addDoc(collection(db, 'observations'), {
-        userId: currentUser.uid,
-        username: currentUsername,
-        gameType,
-        category: cat.label,
-        categoryId: catId,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        timestamp: serverTimestamp()
-      });
-      toast(`${cat.emoji} ${cat.label} kaydedildi!`, 'success');
-      loadObservationStats();
-      loadMapMarkers();
-    } catch(e) {
-      toast('Kayıt hatası: ' + e.message, 'error');
-    }
-  }, (err) => { toast('Konum alınamadı: ' + err.message, 'error'); });
+  toast('📡 Konum alınıyor...');
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      try { await saveObservation(gameType, pos.coords.latitude, pos.coords.longitude); }
+      catch(e) { toast('Kayıt hatası: ' + e.message, 'error'); }
+    },
+    (err) => { toast('Konum alınamadı: ' + err.message, 'error'); }
+  );
 };
 
-// ─── TOUR MODE ───
-let tourMapMarkers = [];
-function onTourMapClick(e) {
-  const catId = selectedTourCategory;
-  if (!catId) { toast('Önce kategori seç!', 'error'); return; }
-  const cat = COUPLE_CATEGORIES.find(c => c.id === catId);
-  const pt = { lat: e.latlng.lat, lng: e.latlng.lng, catId, catLabel: cat.label, catEmoji: cat.emoji };
-  tourPoints.push(pt);
-  const m = L.marker([pt.lat, pt.lng], { icon: makeIcon(CATEGORY_COLORS.couple[catId-1]) })
-    .bindPopup(`${cat.emoji} ${cat.label}`).addTo(mapTour);
-  tourMapMarkers.push(m);
-  renderTourPoints();
-}
+// ─── MAP CLICK ACTIVATION ───
+window.activateMapClick = (gameType) => {
+  const catId = gameType === 'couple' ? selectedCoupleCategory : selectedStreetCategory;
+  if (!catId) { toast('Önce bir kategori seç!', 'error'); return; }
+  // Toggle on
+  mapClickActive[gameType] = true;
+  const hint = document.getElementById(gameType + '-map-hint');
+  const cats = gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
+  const cat = cats.find(c => c.id === catId);
+  if (hint) {
+    hint.style.borderColor = gameType === 'couple' ? 'var(--accent)' : 'var(--accent2)';
+    hint.style.color = gameType === 'couple' ? 'var(--accent)' : 'var(--accent2)';
+    hint.textContent = `🎯 ${cat.emoji} ${cat.label} — haritaya tıkla!`;
+  }
+  // Scroll map into view
+  const mapEl = document.getElementById('map-' + gameType);
+  if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
 
-function renderTourPoints() {
-  const list = document.getElementById('tour-points-list');
-  const btn = document.querySelector('#couple-tour-mode .btn-accent2');
-  btn.textContent = `TUR GÖNDER (${tourPoints.length})`;
-  if (tourPoints.length === 0) {
-    list.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="empty-icon">📍</div>Henüz nokta yok</div>';
+// ─── ON MAP CLICK ───
+async function onMapClick(e, gameType) {
+  // Always allow map clicks if a category is selected
+  const catId = gameType === 'couple' ? selectedCoupleCategory : selectedStreetCategory;
+  if (!catId) {
+    toast('Önce bir kategori seç!', 'error');
     return;
   }
-  list.innerHTML = '';
-  tourPoints.forEach((pt, i) => {
-    const el = document.createElement('div');
-    el.className = 'tour-point';
-    el.innerHTML = `<span>${i+1}. ${pt.catEmoji} ${pt.catLabel}</span><span style="color:var(--muted);font-size:10px;">${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}</span><button class="remove-pt" onclick="removeTourPoint(${i})">✕</button>`;
-    list.appendChild(el);
-  });
+  try {
+    await saveObservation(gameType, e.latlng.lat, e.latlng.lng);
+    // Reset hint after successful click
+    mapClickActive[gameType] = false;
+    const hint = document.getElementById(gameType + '-map-hint');
+    if (hint) {
+      hint.style.borderColor = '';
+      hint.style.color = '';
+      const cats = gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
+      const cat = cats.find(c => c.id === catId);
+      hint.textContent = `📍 ${cat.emoji} ${cat.label} — haritaya tıkla veya "HARİTAYA EKLE" butonuna bas`;
+    }
+  } catch(e) { toast('Kayıt hatası: ' + e.message, 'error'); }
 }
-
-window.removeTourPoint = (i) => {
-  tourPoints.splice(i, 1);
-  if (tourMapMarkers[i]) { mapTour.removeLayer(tourMapMarkers[i]); tourMapMarkers.splice(i, 1); }
-  renderTourPoints();
-};
-
-window.clearTourPoints = () => {
-  tourPoints = [];
-  tourMapMarkers.forEach(m => mapTour.removeLayer(m));
-  tourMapMarkers = [];
-  renderTourPoints();
-};
-
-window.submitTourBatch = async () => {
-  if (tourPoints.length === 0) { toast('Hiç nokta eklemedin!', 'error'); return; }
-  let count = 0;
-  for (const pt of tourPoints) {
-    const cat = COUPLE_CATEGORIES.find(c => c.id === pt.catId);
-    await addDoc(collection(db, 'observations'), {
-      userId: currentUser.uid,
-      username: currentUsername,
-      gameType: 'couple',
-      category: cat.label,
-      categoryId: pt.catId,
-      lat: pt.lat,
-      lng: pt.lng,
-      timestamp: serverTimestamp()
-    });
-    count++;
-  }
-  toast(`${count} nokta kaydedildi! 🗺`, 'success');
-  clearTourPoints();
-  loadObservationStats();
-  loadMapMarkers();
-};
 
 // ─── STATS ───
 async function loadObservationStats() {
