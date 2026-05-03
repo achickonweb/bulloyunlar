@@ -291,6 +291,91 @@
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 6px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ─── WEEKLY QUESTS ─── */
+  #weekly-quests-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: none; /* shown after login */
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  #weekly-quests-bar.visible { display: flex; }
+  
+  .quest-label-main {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .quests-list {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+    flex-wrap: wrap;
+  }
+  
+  .quest-item {
+    flex: 1;
+    min-width: 160px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    transition: border-color 0.3s;
+  }
+  .quest-item.done {
+    border-color: var(--green);
+    background: rgba(0, 255, 136, 0.06);
+  }
+  
+  .quest-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+  .quest-name {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .quest-item.done .quest-name { color: var(--green); }
+  
+  .quest-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .quest-item.done .quest-count { color: var(--green); }
+  
+  .quest-bar-bg {
+    background: var(--surface3);
+    border-radius: 4px;
+    height: 5px;
+    overflow: hidden;
+  }
+  .quest-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .quest-item.done .quest-bar-fill {
+    background: var(--green);
+  }
 </style>
 </head>
 <body>
@@ -363,9 +448,15 @@
   
   <!-- Nav Tabs -->
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="switchTab('couple')">👫 Çift Görüntüleri</button>
+    <button class="nav-tab active" onclick="switchTab('couple')">👫 Çift Gözlemi</button>
     <button class="nav-tab" onclick="switchTab('street')">🌆 Sokak Olayları</button>
     <button class="nav-tab" onclick="switchTab('forum')">💬 Forum & Dedikodu</button>
+  </div>
+
+  <!-- ──── WEEKLY QUESTS BAR ──── -->
+  <div id="weekly-quests-bar">
+    <div class="quest-label-main">🎯 HAFTALIK</div>
+    <div class="quests-list" id="quests-list"></div>
   </div>
 
   <!-- ──── GAME 1: COUPLE SIGHTINGS ──── -->
@@ -373,7 +464,7 @@
     <div class="game-panel">
       <div class="panel-header">
         <div class="panel-title">ÇİFT <span style="color:var(--accent)">GÖZLEMİ</span></div>
-        <div class="panel-subtitle">// romantic encounters in the wild</div>
+        <div class="panel-subtitle">// etraftaki romantik olaylar</div>
         <div class="stats-row">
           <div class="stat-chip"><div class="stat-val" style="color:var(--accent)" id="couple-count">-</div><div class="stat-label">Toplam</div></div>
           <div class="stat-chip"><div class="stat-val" style="color:var(--accent3)" id="couple-today">-</div><div class="stat-label">Bugün</div></div>
@@ -412,7 +503,7 @@
     <div class="game-panel">
       <div class="panel-header">
         <div class="panel-title">SOKAK <span style="color:var(--accent2)">OLAYLARI</span></div>
-        <div class="panel-subtitle">// urban chaos recorder</div>
+        <div class="panel-subtitle">// sokaktaki olayların</div>
         <div class="stats-row">
           <div class="stat-chip"><div class="stat-val" style="color:var(--accent2)" id="street-count">-</div><div class="stat-label">Toplam</div></div>
           <div class="stat-chip"><div class="stat-val" style="color:var(--accent3)" id="street-today">-</div><div class="stat-label">Bugün</div></div>
@@ -492,6 +583,60 @@
 <!-- FIREBASE + LEAFLET SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<!-- SERVICE WORKER — INLINE (sw.js gerekmez) -->
+<script>
+(function() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const SW_CODE = `
+// BÜLLOYUNLAR — Service Worker v1 (inline)
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('/');
+    })
+  );
+});
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let data = {};
+  try { data = event.data.json(); } catch(e) { data = { title: 'BÜLLOYUNLAR', body: event.data.text() }; }
+  const options = {
+    body: data.body || '',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    tag: 'bulloyunlar-push',
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(data.title || 'BÜLLOYUNLAR', options));
+});
+`;
+
+  const blob = new Blob([SW_CODE], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl, { scope: '/' })
+    .then(reg => {
+      console.log('[SW] Inline SW registered:', reg.scope);
+      // Revoke blob URL after registration (no longer needed)
+      URL.revokeObjectURL(swUrl);
+    })
+    .catch(err => {
+      console.warn('[SW] Inline registration failed (scope/origin issue):', err);
+      // Blob SW scope kısıtlaması: bildirimler yine de Notification API ile çalışır
+    });
+})();
+</script>
+
 <script type="module">
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🔐 FIREBASE SECURITY RULES DEPLOYMENT INSTRUCTIONS
@@ -710,6 +855,104 @@ function setupUserUI() {
     badgeContainer.innerHTML = '';
     avatar.classList.remove('admin-avatar');
   }
+
+  // Show quests bar on login
+  document.getElementById('weekly-quests-bar').classList.add('visible');
+  
+  // Request push notification permission
+  requestNotificationPermission();
+}
+
+// ─── PUSH NOTIFICATION PERMISSION ───
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    // Small delay so user is already in the app
+    setTimeout(async () => {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        toast('🔔 Bildirimler açıldı!', 'success');
+      }
+    }, 2000);
+  }
+}
+
+function sendPushNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: 'bulloyunlar-feed',
+      renotify: true,
+    });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch(e) {
+    console.warn('[Notification] Failed:', e);
+  }
+}
+
+// ─── WEEKLY QUESTS ───
+const WEEKLY_QUESTS = [
+  {
+    id: 'report3',
+    emoji: '📍',
+    label: '3 Olay Bildir',
+    target: 3,
+    // counts all observations (both types) by current user this week
+    calc: (obs) => obs.filter(o => o.userId === currentUser?.uid && isThisWeek(o.timestamp)).length
+  },
+  {
+    id: 'couple2',
+    emoji: '👫',
+    label: '2 Çift Gözlemle',
+    target: 2,
+    calc: (obs) => obs.filter(o => o.userId === currentUser?.uid && o.gameType === 'couple' && isThisWeek(o.timestamp)).length
+  }
+];
+
+function isThisWeek(ts) {
+  if (!ts) return true;
+  const millis = ts.toMillis ? ts.toMillis() : (ts instanceof Date ? ts.getTime() : Date.now());
+  const now = new Date();
+  // Get Monday of this week
+  const dayOfWeek = now.getDay() || 7; // 1=Mon...7=Sun
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dayOfWeek - 1));
+  monday.setHours(0, 0, 0, 0);
+  return millis >= monday.getTime();
+}
+
+function renderWeeklyQuests(observations) {
+  const list = document.getElementById('quests-list');
+  if (!list || !currentUser) return;
+  list.innerHTML = '';
+  
+  WEEKLY_QUESTS.forEach(q => {
+    const current = q.calc(observations);
+    const done = current >= q.target;
+    const pct = Math.min(100, Math.round((current / q.target) * 100));
+    
+    const item = document.createElement('div');
+    item.className = `quest-item${done ? ' done' : ''}`;
+    item.innerHTML = `
+      <div class="quest-top">
+        <div class="quest-name">
+          ${q.emoji} ${q.label}
+          ${done ? ' ✅' : ''}
+        </div>
+        <div class="quest-count">${current}/${q.target}</div>
+      </div>
+      <div class="quest-bar-bg">
+        <div class="quest-bar-fill" style="width:${pct}%"></div>
+      </div>
+    `;
+    list.appendChild(item);
+  });
 }
 
 window.switchAuthTab = (tab) => {
@@ -779,10 +1022,31 @@ function startGlobalListeners() {
   if(!currentUser) return;
   stopGlobalListeners();
 
-  // 1. Observations Listener
+  // 1. Observations Listener — with live feed notifications
+  let observationsInitialized = false;
   unsubs.observations = onSnapshot(getPublicCol('observations'), (snap) => {
+    const prevIds = new Set(allObservations.map(o => o.id));
     allObservations = snap.docs.map(d => ({id: d.id, ...d.data()}));
     renderMapsAndStats();
+    renderWeeklyQuests(allObservations);
+
+    // Detect new docs after initial load
+    if (observationsInitialized) {
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const d = { id: change.doc.id, ...change.doc.data() };
+          // Only notify if someone else added it
+          if (d.userId && d.userId !== currentUser.uid && !prevIds.has(d.id)) {
+            const catList = d.gameType === 'couple' ? COUPLE_CATEGORIES : STREET_CATEGORIES;
+            const catInfo = catList.find(c => c.id === d.categoryId) || { label: d.category || 'Bilinmiyor', emoji: '📍' };
+            const msg = `Yeni Rapor: @${d.username || 'anonim'}, ${catInfo.emoji} ${catInfo.label} bildirdi!`;
+            toast(msg, 'success');
+            sendPushNotification('🗺️ BÜLLOYUNLAR', msg);
+          }
+        }
+      });
+    }
+    observationsInitialized = true;
   }, (error) => {
     console.error("Observations sync error:", error);
     toast('Harita verileri çekilemedi: ' + error.message, 'error');
